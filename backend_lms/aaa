@@ -1,0 +1,16 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+Route::get('/api-check', function () {
+    return '<span style="color:green">API Laravel siap digunakan!</span>';
+});
+
+// Contoh API tambahan
+Route::get('/api-users', function () {
+    return response()->json(['users' => ['Alice', 'Bob']]);
+});
+
+Route::get('/api-products', function () {
+    return response()->json(['products' => ['Laptop', 'Phone']]);
+});

@@ -1,6 +1,4 @@
-# lms_sekolah
-Kode ini untuk magang
-
+<!-- mysql -u lms -p -->
 # Backend LMS API
 
 ## Base URL
