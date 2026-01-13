@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Siswa;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -11,15 +10,17 @@ class SiswaController extends Controller
 {
     public function login(Request $request)
     {
-        $siswa = Siswa::where('username', $request->username)->first();
+        $user = User::where('email', $request->email)
+                    ->where('role', 'siswa')
+                    ->first();
 
-        if (!$siswa || !Hash::check($request->password, $siswa->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Login gagal'], 401);
         }
 
         return response()->json([
-            'message' => 'Login berhasil',
-            'data' => $siswa
+            'message' => 'Login siswa berhasil',
+            'user' => $user
         ]);
     }
 }

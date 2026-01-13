@@ -1,15 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
 Route::prefix('admin')->group(function () {
     require __DIR__.'/admin.php';
 });
 
-Route::prefix('guru')->group(function () {
-    require __DIR__.'/guru.php';
-});
-
-Route::prefix('siswa')->group(function () {
-    require __DIR__.'/siswa.php';
-});
+Route::post('/login', [AuthController::class, 'login']);

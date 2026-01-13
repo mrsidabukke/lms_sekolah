@@ -6,6 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Siswa extends Model
 {
-    protected $fillable = ['username', 'password'];
-    protected $hidden = ['password'];
+    protected $fillable = ['name', 'nisn', 'id_user'];
 }

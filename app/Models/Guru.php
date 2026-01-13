@@ -6,6 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class Guru extends Model
 {
-    protected $fillable = ['username', 'password'];
-    protected $hidden = ['password'];
+    protected $fillable = ['name', 'nip', 'id_user'];
 }

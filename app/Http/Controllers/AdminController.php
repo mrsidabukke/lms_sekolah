@@ -2,66 +2,107 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\Admin;
 use App\Models\Guru;
 use App\Models\Siswa;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
+    // ======================
+    // LOGIN ADMIN
+    // ======================
     public function login(Request $request)
     {
-        $admin = Admin::where('username', $request->username)->first();
+        $request->validate([
+            'identifier' => 'required',
+            'password'   => 'required'
+        ]);
 
-        if (!$admin || !Hash::check($request->password, $admin->password)) {
+        // role admin ditentukan sistem
+        if ($request->identifier !== 'admin') {
+            return response()->json(['message' => 'Bukan akun admin'], 403);
+        }
+
+        $user = User::where('identifier', 'admin')
+                    ->where('role', 'admin')
+                    ->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Login gagal'], 401);
         }
 
         return response()->json([
-            'message' => 'Login berhasil',
-            'data' => $admin
+            'message' => 'Admin berhasil login',
+            'data' => [
+                'identifier' => $user->identifier,
+                'role' => $user->role
+            ]
         ]);
     }
 
-    // CRUD GURU
-    public function createGuru(Request $request)
+    // ======================
+    // REGISTER GURU (ADMIN)
+    // ======================
+    public function registerGuru(Request $request)
     {
-        return Guru::create([
-            'username' => $request->username,
-            'password' => bcrypt($request->password),
+        $request->validate([
+            'name'       => 'required',
+            'identifier' => 'required|unique:users,identifier', // NIP
+            'password'   => 'required'
+        ]);
+
+        DB::transaction(function () use ($request) {
+
+            $user = User::create([
+                'identifier' => $request->identifier, // NIP
+                'password'   => bcrypt($request->password),
+                'role'       => 'guru'
+            ]);
+
+            Guru::create([
+                'name'    => $request->name,
+                'nip'     => $request->identifier,
+                'id_user' => $user->id
+            ]);
+        });
+
+        return response()->json([
+            'message' => "Akun guru {$request->name} berhasil dibuat"
         ]);
     }
 
-    public function getGuru()
+    // ======================
+    // REGISTER SISWA (ADMIN)
+    // ======================
+    public function registerSiswa(Request $request)
     {
-        return Guru::all();
-    }
-
-    public function deleteGuru($id)
-    {
-        Guru::findOrFail($id)->delete();
-        return response()->json(['message' => 'Guru dihapus']);
-    }
-
-    // CRUD SISWA
-    public function createSiswa(Request $request)
-    {
-        return Siswa::create([
-            'username' => $request->username,
-            'password' => bcrypt($request->password),
+        $request->validate([
+            'name'       => 'required',
+            'identifier' => 'required|unique:users,identifier', // NISN
+            'password'   => 'required'
         ]);
-    }
 
-    public function getSiswa()
-    {
-        return Siswa::all();
-    }
+        DB::transaction(function () use ($request) {
 
-    public function deleteSiswa($id)
-    {
-        Siswa::findOrFail($id)->delete();
-        return response()->json(['message' => 'Siswa dihapus']);
+            $user = User::create([
+                'identifier' => $request->identifier, // NISN
+                'password'   => bcrypt($request->password),
+                'role'       => 'siswa'
+            ]);
+
+            Siswa::create([
+                'name'    => $request->name,
+                'nisn'    => $request->identifier,
+                'id_user' => $user->id
+            ]);
+        });
+
+        return response()->json([
+            'message' => "Akun siswa {$request->name} berhasil dibuat"
+        ]);
     }
 }
