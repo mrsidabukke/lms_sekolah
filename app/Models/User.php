@@ -3,33 +3,26 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    use HasFactory;
-
     protected $fillable = [
-        'name',
         'identifier',
+        'name',
+        'email',
         'password',
         'role',
     ];
 
     protected $hidden = ['password'];
 
-    public function admin()
+    public function teacher()
     {
-        return $this->hasOne(Admin::class, 'id_user');
+        return $this->hasOne(Teacher::class);
     }
 
-    public function guru()
+    public function student()
     {
-        return $this->hasOne(Guru::class, 'id_user');
-    }
-
-    public function siswa()
-    {
-        return $this->hasOne(Siswa::class, 'id_user');
+        return $this->hasOne(Student::class);
     }
 }

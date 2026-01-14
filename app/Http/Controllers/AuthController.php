@@ -15,7 +15,6 @@ class AuthController extends Controller
             'password'   => 'required|string',
         ]);
 
-        // ambil user berdasarkan identifier
         $user = User::where('identifier', $request->identifier)->first();
 
         if (!$user) {
@@ -25,7 +24,6 @@ class AuthController extends Controller
             ], 404);
         }
 
-        // cek password
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status' => 'login gagal',
@@ -33,29 +31,32 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // ambil nama sesuai role
-        $name = match ($user->role) {
-            'admin' => optional($user->admin)->name ?? 'administrator',
-            'guru'  => optional($user->guru)->name,
-            'siswa' => optional($user->siswa)->name,
-            default => 'user',
-        };
+        if ($user->role === 'teacher') {
+            return response()->json([
+                'status' => 'Login berhasil',
+                'teacher' => [
+                    'id'    => $user->teacher->id,
+                    'name'  => $user->teacher->name,
+                    'nip'   => $user->teacher->nip,
+                    'mapel' => $user->teacher->mapel,
+                    'role'  => 'teacher'
+                ]
+            ]);
+        }
 
-        // ambil identifier tambahan (nip / nisn / admin)
-        $extraIdentifier = match ($user->role) {
-            'guru'  => optional($user->guru)->nip,
-            'siswa' => optional($user->siswa)->nisn,
-            'admin' => $user->identifier,
-            default => null,
-        };
-
-        return response()->json([
-            'status' => 'user berhasil login',
-            'user' => [
-                'role' => $user->role,
-            ],
-            'nama' => strtolower($name),
-            'nip'  => $extraIdentifier
-        ]);
+        if ($user->role === 'student') {
+            return response()->json([
+                'status' => 'Login berhasil',
+                'student' => [
+                    'id'          => $user->student->id,
+                    'name'        => $user->student->name,
+                    'nisn'        => $user->student->nisn,
+                    'foto'        => $user->student->foto,
+                    'jurusan'     => $user->student->jurusan,
+                    'class_level' => $user->student->class_level,
+                    'role'        => 'student'
+                ]
+            ]);
+        }
     }
 }
