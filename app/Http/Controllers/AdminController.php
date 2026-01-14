@@ -48,61 +48,64 @@ class AdminController extends Controller
     // REGISTER GURU (ADMIN)
     // ======================
     public function registerGuru(Request $request)
-    {
-        $request->validate([
-            'name'       => 'required',
-            'identifier' => 'required|unique:users,identifier', // NIP
-            'password'   => 'required'
+{
+    $request->validate([
+        'name'       => 'required|string',
+        'identifier' => 'required|string|unique:users,identifier',
+        'password'   => 'required|min:4'
+    ]);
+
+    DB::transaction(function () use ($request) {
+
+        $user = User::create([
+            'name'       => $request->name,
+            'identifier' => $request->identifier,
+            'password'   => Hash::make($request->password),
+            'role'       => 'guru'
         ]);
 
-        DB::transaction(function () use ($request) {
-
-            $user = User::create([
-                'identifier' => $request->identifier, // NIP
-                'password'   => bcrypt($request->password),
-                'role'       => 'guru'
-            ]);
-
-            Guru::create([
-                'name'    => $request->name,
-                'nip'     => $request->identifier,
-                'id_user' => $user->id
-            ]);
-        });
-
-        return response()->json([
-            'message' => "Akun guru {$request->name} berhasil dibuat"
+        Guru::create([
+            'name'    => $request->name,
+            'nip'     => $request->identifier,
+            'id_user' => $user->id
         ]);
-    }
+    });
+
+    return response()->json([
+        'message' => "Akun guru berhasil dibuat"
+    ], 201);
+}
 
     // ======================
     // REGISTER SISWA (ADMIN)
     // ======================
     public function registerSiswa(Request $request)
-    {
-        $request->validate([
-            'name'       => 'required',
-            'identifier' => 'required|unique:users,identifier', // NISN
-            'password'   => 'required'
+{
+    $request->validate([
+        'name'       => 'required|string',
+        'identifier' => 'required|string|unique:users,identifier',
+        'password'   => 'required|min:4'
+    ]);
+
+    DB::transaction(function () use ($request) {
+
+        $user = User::create([
+            'name'       => $request->name, // 🔥 INI YANG HILANG
+            'identifier' => $request->identifier,
+            'password'   => Hash::make($request->password),
+            'role'       => 'siswa'
         ]);
 
-        DB::transaction(function () use ($request) {
-
-            $user = User::create([
-                'identifier' => $request->identifier, // NISN
-                'password'   => bcrypt($request->password),
-                'role'       => 'siswa'
-            ]);
-
-            Siswa::create([
-                'name'    => $request->name,
-                'nisn'    => $request->identifier,
-                'id_user' => $user->id
-            ]);
-        });
-
-        return response()->json([
-            'message' => "Akun siswa {$request->name} berhasil dibuat"
+        Siswa::create([
+            'name'    => $request->name,
+            'nisn'    => $request->identifier,
+            'id_user' => $user->id
         ]);
-    }
+    });
+
+    return response()->json([
+        'message' => "Akun siswa berhasil dibuat"
+    ], 201);
+}
+
 }

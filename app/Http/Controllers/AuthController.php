@@ -11,42 +11,51 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'identifier' => 'required',
-            'password'   => 'required'
+            'identifier' => 'required|string',
+            'password'   => 'required|string',
         ]);
 
-        // tentukan role otomatis
-        if ($request->identifier === 'admin') {
-            $role = 'admin';
-        } else {
-            $userTemp = User::where('identifier', $request->identifier)->first();
-            if (!$userTemp) {
-                return response()->json(['message' => 'User tidak ditemukan'], 404);
-            }
-            $role = $userTemp->role;
+        // ambil user berdasarkan identifier
+        $user = User::where('identifier', $request->identifier)->first();
+
+        if (!$user) {
+            return response()->json([
+                'status' => 'login gagal',
+                'message' => 'user tidak ditemukan'
+            ], 404);
         }
 
-        $user = User::where('identifier', $request->identifier)
-                    ->where('role', $role)
-                    ->first();
-
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Login gagal'], 401);
+        // cek password
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'status' => 'login gagal',
+                'message' => 'password salah'
+            ], 401);
         }
 
-        $name = match ($role) {
-            'admin' => $user->admin->name ?? 'Admin',
-            'guru'  => $user->guru->name,
-            'siswa' => $user->siswa->name,
+        // ambil nama sesuai role
+        $name = match ($user->role) {
+            'admin' => optional($user->admin)->name ?? 'administrator',
+            'guru'  => optional($user->guru)->name,
+            'siswa' => optional($user->siswa)->name,
+            default => 'user',
+        };
+
+        // ambil identifier tambahan (nip / nisn / admin)
+        $extraIdentifier = match ($user->role) {
+            'guru'  => optional($user->guru)->nip,
+            'siswa' => optional($user->siswa)->nisn,
+            'admin' => $user->identifier,
+            default => null,
         };
 
         return response()->json([
-            'message' => "{$role} {$name} berhasil login",
-            'data' => [
-                'identifier' => $user->identifier,
-                'role' => $role,
-                'name' => $name
-            ]
+            'status' => 'user berhasil login',
+            'user' => [
+                'role' => $user->role,
+            ],
+            'nama' => strtolower($name),
+            'nip'  => $extraIdentifier
         ]);
     }
 }

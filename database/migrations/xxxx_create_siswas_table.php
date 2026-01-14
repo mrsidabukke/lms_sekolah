@@ -9,9 +9,14 @@ return new class extends Migration {
     {
         Schema::create('siswas', function (Blueprint $table) {
             $table->id();
-            $table->string('username')->unique();
-            $table->string('password');
+            $table->string('name')->nullable();
+            $table->string('nisn')->unique();
             $table->timestamps();
+
+            $table->foreignId('id_user')
+                  ->constrained('users')
+                  ->cascadeOnDelete()
+                  ->cascadeOnUpdate();
         });
     }
 
