@@ -6,14 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\Section;
+use App\Models\Task;
+use App\Models\TaskSubmission;
+use App\Models\LessonUserDuration;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 class LessonController extends Controller
 {
-    /**
-     * Halaman belajar siswa
-     */
     public function show(Lesson $lesson)
     {
         $user = Auth::user();
@@ -29,30 +30,28 @@ class LessonController extends Controller
 
         /**
          * =========================
-         * SEMUA ITEM (LESSON + QUIZ)
+         * SEMUA LESSON
          * =========================
          */
-        $items = collect();
-
-        $lessons = Lesson::where('module_id', $lesson->module_id)->get();
-        $quizzes = Quiz::where('module_id', $lesson->module_id)->get();
-
-        foreach ($lessons as $l) {
-            $l->type = 'lesson';
-            $items->push($l);
-        }
-
-        foreach ($quizzes as $q) {
-            $q->type = 'quiz';
-            $items->push($q);
-        }
-
-        // Urutkan GLOBAL
-        $items = $items->sortBy('position')->values();
+        $lessons = Lesson::where('module_id', $lesson->module_id)
+            ->orderBy('position')
+            ->get();
 
         /**
          * =========================
-         * COMPLETED LESSON
+         * QUIZ & TASK
+         * =========================
+         */
+        $quizzes = Quiz::whereIn('lesson_id', $lessons->pluck('id'))->get();
+
+        $tasks = Task::whereIn('lesson_id', $lessons->pluck('id'))
+            ->where('is_active', true)
+            ->get()
+            ->groupBy('lesson_id');
+
+        /**
+         * =========================
+         * STATUS USER
          * =========================
          */
         $completedLessons = $user->lessons()
@@ -60,40 +59,80 @@ class LessonController extends Controller
             ->pluck('lessons.id')
             ->toArray();
 
-        /**
-         * =========================
-         * PASSED QUIZ
-         * =========================
-         */
         $passedQuizzes = $user->quizzes()
             ->wherePivot('is_passed', true)
             ->pluck('quizzes.id')
             ->toArray();
 
+        // 🔑 AMBIL SEMUA TASK SUBMISSION USER
+        $completedTasks = TaskSubmission::where('user_id', $user->id)
+            ->pluck('task_id')
+            ->toArray();
+
         /**
          * =========================
-         * LOCK SYSTEM (GLOBAL)
+         * BUILD ITEMS (LESSON → QUIZ → TASK)
          * =========================
          */
-        $items->each(function ($item, $index) use ($items, $completedLessons, $passedQuizzes) {
+        $items = collect();
 
+        foreach ($lessons as $l) {
+
+            // LESSON
+            $items->push((object)[
+                'id'           => $l->id,
+                'title'        => $l->title,
+                'type'         => 'lesson',
+                'section_id'   => $l->section_id,
+                'position'     => $l->position * 10,
+                'is_completed' => in_array($l->id, $completedLessons),
+                'is_locked'    => false,
+            ]);
+
+            // QUIZ
+            $quiz = $quizzes->firstWhere('lesson_id', $l->id);
+            if ($quiz) {
+                $items->push((object)[
+                    'id'           => $quiz->id,
+                    'title'        => $quiz->title,
+                    'type'         => 'quiz',
+                    'section_id'   => $l->section_id,
+                    'position'     => ($l->position * 10) + 5,
+                    'is_completed' => in_array($quiz->id, $passedQuizzes),
+                    'is_locked'    => false,
+                ]);
+            }
+
+            // TASK (SUB ITEM)
+            if (isset($tasks[$l->id])) {
+                foreach ($tasks[$l->id] as $task) {
+                    $items->push((object)[
+                        'id'           => $task->id,
+                        'title'        => '📝 '.$task->title,
+                        'type'         => 'task',
+                        'section_id'   => $l->section_id,
+                        'position'     => ($l->position * 10) + 8,
+                        // ✅ INI FIX UTAMANYA
+                        'is_completed' => in_array($task->id, $completedTasks),
+                        'is_locked'    => false,
+                    ]);
+                }
+            }
+        }
+
+        /**
+         * =========================
+         * SORT & LOCK SYSTEM
+         * =========================
+         */
+        $items = $items->sortBy('position')->values();
+
+        $items->each(function ($item, $index) use ($items) {
             if ($index === 0) {
                 $item->is_locked = false;
-            } else {
-                $prev = $items[$index - 1];
-
-                $prevCompleted =
-                    ($prev->type === 'lesson' && in_array($prev->id, $completedLessons)) ||
-                    ($prev->type === 'quiz' && in_array($prev->id, $passedQuizzes));
-
-                $item->is_locked = !$prevCompleted;
+                return;
             }
-
-            if ($item->type === 'lesson') {
-                $item->is_completed = in_array($item->id, $completedLessons);
-            } else {
-                $item->is_completed = in_array($item->id, $passedQuizzes);
-            }
+            $item->is_locked = ! $items[$index - 1]->is_completed;
         });
 
         /**
@@ -105,29 +144,18 @@ class LessonController extends Controller
             $section->items = $items
                 ->where('section_id', $section->id)
                 ->values();
-
-            // BAB tanpa item → terkunci
-            $section->is_locked = $section->items->isEmpty();
-
-            if ($section->is_locked) {
-                $section->items->each(fn ($i) => $i->is_locked = true);
-            }
         });
 
         /**
          * =========================
-         * BLOK AKSES JIKA TERKUNCI
+         * STATUS CURRENT LESSON
          * =========================
          */
-        $current = $items
-            ->where('type', 'lesson')
-            ->firstWhere('id', $lesson->id);
-
-        abort_if($current && $current->is_locked, 403);
+        $isCompleted = in_array($lesson->id, $completedLessons);
 
         /**
          * =========================
-         * NEXT LESSON
+         * NEXT LESSON & QUIZ
          * =========================
          */
         $currentIndex = $items->search(
@@ -136,44 +164,66 @@ class LessonController extends Controller
 
         $nextLesson = $items
             ->slice($currentIndex + 1)
-            ->first(fn ($i) => $i->type === 'lesson' && !$i->is_locked);
+            ->first(fn ($i) => $i->type === 'lesson' && ! $i->is_locked);
 
-        $isCompleted = in_array($lesson->id, $completedLessons);
-        $canGoNext   = $isCompleted && $nextLesson;
+        $nextQuiz = $items
+            ->slice($currentIndex + 1)
+            ->first(fn ($i) =>
+                $i->type === 'quiz' &&
+                ! $i->is_locked &&
+                ! $i->is_completed
+            );
+
+        $canGoNext = $isCompleted && $nextLesson;
 
         /**
          * =========================
          * PROGRESS
          * =========================
          */
-        $total = $items->count();
-        $done  = count($completedLessons) + count($passedQuizzes);
-
-        $progress = $total > 0
-            ? round($done / $total * 100)
+        $progress = $items->count() > 0
+            ? round(
+                $items->where('is_completed', true)->count()
+                / $items->count() * 100
+            )
             : 0;
 
         return view('siswa.modul.show', compact(
             'lesson',
             'sections',
             'progress',
+            'isCompleted',
             'nextLesson',
-            'canGoNext',
-            'isCompleted'
+            'nextQuiz',
+            'canGoNext'
         ));
     }
 
-    /**
-     * Tandai lesson selesai
-     */
     public function markAsCompleted(Lesson $lesson): RedirectResponse
     {
-        $user = Auth::user();
-
-        $user->lessons()->syncWithoutDetaching([
-            $lesson->id => ['is_completed' => true]
+        Auth::user()->lessons()->syncWithoutDetaching([
+            $lesson->id => ['is_completed' => true],
         ]);
 
         return redirect()->route('siswa.modul.show', $lesson->id);
+    }
+
+    public function storeDuration(Request $request, Lesson $lesson)
+    {
+        $request->validate([
+            'seconds' => 'required|integer|min:1',
+        ]);
+
+        LessonUserDuration::updateOrCreate(
+            [
+                'user_id'   => auth()->id(),
+                'lesson_id' => $lesson->id,
+            ],
+            [
+                'seconds' => $request->seconds,
+            ]
+        );
+
+        return response()->json(['status' => 'ok']);
     }
 }

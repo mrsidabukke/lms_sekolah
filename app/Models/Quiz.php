@@ -13,6 +13,7 @@ class Quiz extends Model
         'title',
         'position',
         'passing_score',
+        'duration',      // ⏱️ WAJIB
         'is_active',
     ];
 

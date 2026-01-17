@@ -48,4 +48,12 @@ class User extends Authenticatable
             ->withPivot('score', 'is_passed')
             ->withTimestamps();
     }
+
+    public function department()
+{
+    return $this->belongsTo(Department::class);
+}
+
+
+    
 }

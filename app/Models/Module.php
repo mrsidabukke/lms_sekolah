@@ -26,4 +26,10 @@ class Module extends Model
     return $this->hasMany(Section::class)->orderBy('order');
 }
 
+public function department()
+{
+    return $this->belongsTo(Department::class);
+}
+
+
 }
