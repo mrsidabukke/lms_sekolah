@@ -1,26 +1,3 @@
-# lms_sekolah
-Kode ini untuk magang
-
-# Backend LMS API
-
-## Base URL
-
 ```
-http://localhost:8000/api
+└── 2026_01_14_000002_create_teachers_table.php
 ```
-
-> Semua endpoint API menggunakan base URL di atas.
-
----
-
-## Authentication (Login)
-
-| Role  | Method | Endpoint       | Description         |
-| ----- | ------ | -------------- | ------------------- |
-| Admin | POST   | `/admin/login` | Login sebagai admin |
-| Guru  | POST   | `/guru/login`  | Login sebagai guru  |
-| Siswa | POST   | `/siswa/login` | Login sebagai siswa |
-
----
-
-Password udah di hash ke database
