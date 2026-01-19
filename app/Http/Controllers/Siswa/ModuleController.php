@@ -3,49 +3,37 @@
 namespace App\Http\Controllers\Siswa;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Module;
 use Illuminate\Support\Facades\Auth;
 
 class ModuleController extends Controller
 {
-    public function dashboard()
+     public function dashboard()
     {
         $user = Auth::user();
 
         /**
          * =========================
-         * AMBIL SEMUA MODULE AKTIF
+         * SEMUA JURUSAN (DINAMIS)
          * =========================
          */
-        $allModules = Module::where('is_active', true)
-            ->orderBy('created_at', 'desc')
+        $departments = Department::with('modules')->get();
+
+        /**
+         * =========================
+         * MODULE MILIK SISWA
+         * =========================
+         */
+        $myModules = Module::where('department_id', $user->department_id)
+            ->where('is_active', true)
+            ->with('lessons')
             ->get();
 
-        /**
-         * =========================
-         * GROUP BY DEPARTMENT
-         * =========================
-         */
-        $departments = $allModules->groupBy('department_id');
-
-        /**
-         * =========================
-         * LABEL JURUSAN
-         * (bisa nanti pindah ke table departments)
-         * =========================
-         */
-        $departmentLabels = [
-            1 => 'Teknik Mesin',
-            2 => 'Teknik Elektro',
-            3 => 'Teknik Informatika',
-            4 => 'Akuntansi',
-            5 => 'Bisnis Digital',
-        ];
-
         return view('siswa.dashboard', [
-            'user'             => $user,
-            'departments'      => $departments,
-            'departmentLabels' => $departmentLabels,
+            'user'        => $user,
+            'departments'=> $departments,
+            'myModules'  => $myModules, // ⬅️ INI YANG TADI HILANG
         ]);
     }
 }

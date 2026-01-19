@@ -9,28 +9,45 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
-    public function update(Request $request)
+    /**
+     * =========================
+     * UPDATE FOTO PROFIL SISWA
+     * =========================
+     */
+    public function updatePhoto(Request $request)
     {
-        $user = Auth::user();
-
         $request->validate([
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        if ($request->hasFile('photo')) {
+        $user = Auth::user();
 
-            // Hapus foto lama
-            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-                Storage::disk('public')->delete($user->photo);
-            }
-
-            // Simpan foto baru
-            $path = $request->file('photo')->store('profile', 'public');
-
-            $user->photo = $path;
-            $user->save();
+        /**
+         * =========================
+         * HAPUS FOTO LAMA (JIKA ADA)
+         * =========================
+         */
+        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+            Storage::disk('public')->delete($user->photo);
         }
 
-        return back()->with('success', 'Profil berhasil diperbarui');
+        /**
+         * =========================
+         * SIMPAN FOTO BARU
+         * =========================
+         */
+        $path = $request->file('photo')
+            ->store('profile-photos', 'public');
+
+        /**
+         * =========================
+         * SIMPAN KE DATABASE
+         * =========================
+         */
+        $user->update([
+            'photo' => $path,
+        ]);
+
+        return back()->with('success', '✅ Foto profil berhasil diperbarui');
     }
 }
